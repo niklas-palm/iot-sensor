@@ -282,3 +282,18 @@ Resources:
       ResponseMappingTemplate: "$util.toJson($ctx.result)"
 
 Outputs:
+  CognitoUserPoolId:
+    Description: The Pool ID of the Cognito User Pool
+    Value: !Ref UserPool
+  CognitoUserPoolClientId:
+    Description: The Client ID for AWS AppSync Auth
+    Value: !Ref UserPoolClient
+  DynamoDBNotesTableName:
+    Description: The name of the DynamoDB Table
+    Value: !Ref DynamoDBNotesTable
+  GraphQLApiEndpoint:
+    Description: The URL to the GraphQL Endpoint
+    Value: !GetAtt AppSyncApi.GraphQLUrl
+  GraphQLApiId:
+    Description: The API ID of the GraphQL API
+    Value: !GetAtt AppSyncApi.ApiId
