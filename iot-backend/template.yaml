@@ -134,4 +134,58 @@ Resources:
               - dynamodb:BatchWriteItem
             Resource: !Join ["", [!GetAtt DynamoDBNotesTable.Arn, "*"]]
 
+  AppSyncApi:
+    Type: "AWS::AppSync::GraphQLApi"
+    Description: "The GraphQL API for the Notes App"
+    Properties:
+      AuthenticationType: "AMAZON_COGNITO_USER_POOLS"
+      Name: !Sub ${APIName}
+      UserPoolConfig:
+        UserPoolId: !Ref UserPoolClient
+        AwsRegion: !Sub ${AWS::Region}
+        DefaultAction: "ALLOW"
+
+  AppSyncSchema:
+    Type: "AWS::AppSync::GraphQLSchema"
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      Definition: |
+        type Note {
+          NoteId: ID!
+          title: String
+          content: String
+        }
+
+        type PaginatedNotes {
+          notes: [Note!]!
+          nextToken: String
+        }
+
+        type Query {
+          allNotes(limit: Int, nextToken: String): PaginatedNotes!
+          getNote(NoteId: ID!): Note
+        }
+
+        type Mutation {
+          saveNote(NoteId: ID!, title: String!, content: String!): Note
+          deleteNote(NoteId: ID!): Note
+        }
+
+        type Schema {
+          query: Query
+          mutation: Mutation
+        }
+
+  AppSyncNotesTableDataSource:
+    Type: "AWS::AppSync::DataSource"
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      Name: !Sub ${APIName}_notes_table
+      Description: "The Notes Table AppSync Data Source"
+      Type: AMAZON_DYNAMODB
+      ServiceRoleArn: !GetAtt DynamoDBRole.Arn
+      DynamoDBConfig:
+        TableName: !Ref DynamoDBNotesTable
+        AwsRegion: !Sub ${AWS::Region}
+
 Outputs:
