@@ -171,9 +171,17 @@ Resources:
           deleteNote(NoteId: ID!): Note
         }
 
+        type Subscription {
+          onSaveNote: Note
+          @aws_subscribe(mutations: ["saveNote"])
+          onDeleteNote: Note
+          @aws_subscribe(mutations: ["deleteNote"])
+        }
+
         type Schema {
           query: Query
           mutation: Mutation
+          subscription: Subscription
         }
 
   AppSyncNotesTableDataSource:
