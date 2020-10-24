@@ -44,4 +44,37 @@ Resources:
             Action: sns:publish
             Resource: "*"
 
+  UserPool:
+    Type: "AWS::Cognito::UserPool"
+    Description: "A Cognito user pool for authenticating users"
+    Properties:
+      UserPoolName: !Sub ${APIName}-user-pool
+      AutoVerifiedAttributes:
+        - phone_number
+      MfaConfiguration: "ON"
+      SmsConfiguration:
+        ExternalId: !Sub ${APIName}-external
+        SnsCallerArn: !GetAtt SNSRole.Arn
+      Schema:
+        - Name: name
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+        - Name: email
+          AttributeDataType: String
+          Mutable: false
+          Required: true
+        - Name: phone_number
+          AttributeDataType: String
+          Mutable: false
+          Required: true
+
+  UserPoolClient:
+    Type: "AWS::Cognito::UserPoolClient"
+    Description: "App Client used by AWS AppSync"
+    Properties:
+      ClientName: !Sub ${APIName}-appsync-client
+      GenerateSecret: false
+      UserPoolId: !Ref UserPool
+
 Outputs:
