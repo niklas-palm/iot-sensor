@@ -77,18 +77,18 @@ Resources:
       GenerateSecret: false
       UserPoolId: !Ref UserPool
 
-  DynamoDBNotesTable:
+  DynamoDBSensorsTable:
     Type: "AWS::DynamoDB::Table"
-    Description: "Data store for AWS AppSync Notes Type"
+    Description: "Data store for AWS AppSync Sensors Type"
     Properties:
-      TableName: !Sub ${APIName}-notes-table
+      TableName: !Sub ${APIName}-sensors-table
       AttributeDefinitions:
-        - AttributeName: "NoteId"
+        - AttributeName: "SensorId"
           AttributeType: "S"
         - AttributeName: "UserId"
           AttributeType: "S"
       KeySchema:
-        - AttributeName: "NoteId"
+        - AttributeName: "SensorId"
           KeyType: "HASH"
         - AttributeName: "UserId"
           KeyType: "RANGE"
@@ -132,11 +132,11 @@ Resources:
               - dynamodb:Scan
               - dynamodb:BatchGetItem
               - dynamodb:BatchWriteItem
-            Resource: !Join ["", [!GetAtt DynamoDBNotesTable.Arn, "*"]]
+            Resource: !Join ["", [!GetAtt DynamoDBSensorsTable.Arn, "*"]]
 
   AppSyncApi:
     Type: "AWS::AppSync::GraphQLApi"
-    Description: "The GraphQL API for the Notes App"
+    Description: "The GraphQL API for the Sensors App"
     Properties:
       AuthenticationType: "AMAZON_COGNITO_USER_POOLS"
       Name: !Sub ${APIName}
@@ -150,32 +150,37 @@ Resources:
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       Definition: |
-        type Note {
-          NoteId: ID!
-          title: String
-          content: String
+        type Sensor {
+          SensorId: ID!
+          sensorValue: String
+          sensorLocation: String
         }
 
-        type PaginatedNotes {
-          notes: [Note!]!
+        type PaginatedSensors {
+          sensors: [Sensor!]!
           nextToken: String
         }
 
         type Query {
-          allNotes(limit: Int, nextToken: String): PaginatedNotes!
-          getNote(NoteId: ID!): Note
+          allSensors(limit: Int, nextToken: String): PaginatedSensors!
+          getSensor(SensorId: ID!): Sensor
         }
 
         type Mutation {
-          saveNote(NoteId: ID!, title: String!, content: String!): Note
-          deleteNote(NoteId: ID!): Note
+          addSensor(SensorId: ID!, sensorValue: Int!, sensorLocation: String!): Sensor
+          updateSensorValue(SensorId: ID!, sensorValue: Int!): Sensor
+          deleteSensor(SensorId: ID!): Sensor
         }
 
         type Subscription {
-          onSaveNote: Note
-          @aws_subscribe(mutations: ["saveNote"])
-          onDeleteNote: Note
-          @aws_subscribe(mutations: ["deleteNote"])
+          onAddSensor: Sensor
+          @aws_subscribe(mutations: ["addSensor"])
+
+          onUpdateSensorValue: Sensor
+          @aws_subscribe(mutations: ["updateSensorValue"])
+
+          onDeleteSensor: Sensor
+          @aws_subscribe(mutations: ["deleteSensor"])
         }
 
         type Schema {
@@ -184,27 +189,27 @@ Resources:
           subscription: Subscription
         }
 
-  AppSyncNotesTableDataSource:
+  AppSyncSensorsTableDataSource:
     Type: "AWS::AppSync::DataSource"
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
-      Name: !Sub ${APIName}_notes_table
-      Description: "The Notes Table AppSync Data Source"
+      Name: !Sub ${APIName}_sensors_table
+      Description: "The Sensors Table AppSync Data Source"
       Type: AMAZON_DYNAMODB
       ServiceRoleArn: !GetAtt DynamoDBRole.Arn
       DynamoDBConfig:
-        TableName: !Ref DynamoDBNotesTable
+        TableName: !Ref DynamoDBSensorsTable
         AwsRegion: !Sub ${AWS::Region}
 
   # Resolvers
-  AppSyncAllNotesQueryResolver:
+  AppSyncAllSensorsQueryResolver:
     Type: "AWS::AppSync::Resolver"
     DependsOn: AppSyncSchema
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       TypeName: Query
-      FieldName: allNotes
-      DataSourceName: !GetAtt AppSyncNotesTableDataSource.Name
+      FieldName: allSensors
+      DataSourceName: !GetAtt AppSyncSensorsTableDataSource.Name
       RequestMappingTemplate: |
         {
           "version": "2017-02-28",
@@ -215,68 +220,94 @@ Resources:
 
       ResponseMappingTemplate: |
         {
-          "notes": $util.toJson($ctx.result.items),
+          "sensors": $util.toJson($ctx.result.items),
           "nextToken": $util.toJson($ctx.result.nextToken)
         }
 
-  AppSyncGetNoteQueryResolver:
+  AppSyncGetSensorQueryResolver:
     Type: "AWS::AppSync::Resolver"
     DependsOn: AppSyncSchema
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       TypeName: Query
-      FieldName: getNote
-      DataSourceName: !GetAtt AppSyncNotesTableDataSource.Name
+      FieldName: getSensor
+      DataSourceName: !GetAtt AppSyncSensorsTableDataSource.Name
       RequestMappingTemplate: |
         {
           "version": "2017-02-28",
           "operation": "GetItem",
           "key": {
-            "NoteId": $util.dynamodb.toDynamoDBJson($ctx.args.NoteId),
+            "SensorId": $util.dynamodb.toDynamoDBJson($ctx.args.SensorId),
             "UserId": $util.dynamodb.toDynamoDBJson($ctx.identity.sub)
           }
         }
 
       ResponseMappingTemplate: "$util.toJson($ctx.result)"
 
-  AppSyncSaveNoteMutationResolver:
+  AppSyncAddSensorMutationResolver:
     Type: "AWS::AppSync::Resolver"
     DependsOn: AppSyncSchema
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       TypeName: Mutation
-      FieldName: saveNote
-      DataSourceName: !GetAtt AppSyncNotesTableDataSource.Name
+      FieldName: addSensor
+      DataSourceName: !GetAtt AppSyncSensorsTableDataSource.Name
       RequestMappingTemplate: |
         {
           "version": "2017-02-28",
           "operation": "PutItem",
           "key": {
-            "NoteId": $util.dynamodb.toDynamoDBJson($ctx.args.NoteId),
+            "SensorId": $util.dynamodb.toDynamoDBJson($ctx.args.SensorId),
             "UserId": $util.dynamodb.toDynamoDBJson($ctx.identity.sub)
           },
           "attributeValues": {
-            "title": $util.dynamodb.toDynamoDBJson($ctx.args.title),
-            "content": $util.dynamodb.toDynamoDBJson($ctx.args.content)
+            "sensorValue": $util.dynamodb.toDynamoDBJson($ctx.args.sensorValue),
+            "sensorLocation": $util.dynamodb.toDynamoDBJson($ctx.args.sensorLocation)
           }
         }
 
       ResponseMappingTemplate: "$util.toJson($ctx.result)"
 
-  AppSyncDeleteNoteMutationResolver:
+  AppSyncUpdateSensorValueMutationResolver:
     Type: "AWS::AppSync::Resolver"
     DependsOn: AppSyncSchema
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       TypeName: Mutation
-      FieldName: deleteNote
-      DataSourceName: !GetAtt AppSyncNotesTableDataSource.Name
+      FieldName: updateSensorValue
+      DataSourceName: !GetAtt AppSyncSensorsTableDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "operation": "UpdateItem",
+          "key": {
+            "SensorId": $util.dynamodb.toDynamoDBJson($ctx.args.SensorId),
+            "UserId": $util.dynamodb.toDynamoDBJson($ctx.identity.sub)
+          },
+          "update": {
+            "expression": "SET sensorValue = :sensorValue",
+            "expressionValues": {
+              ":sensorValue": $util.dynamodb.toDynamoDBJson($ctx.args.sensorValue)
+            }
+          }
+        }
+
+      ResponseMappingTemplate: "$util.toJson($ctx.result)"
+
+  AppSyncDeleteSensorMutationResolver:
+    Type: "AWS::AppSync::Resolver"
+    DependsOn: AppSyncSchema
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Mutation
+      FieldName: deleteSensor
+      DataSourceName: !GetAtt AppSyncSensorsTableDataSource.Name
       RequestMappingTemplate: |
         {
           "version": "2017-02-28",
           "operation": "DeleteItem",
           "key": {
-            "NoteId": $util.dynamodb.toDynamoDBJson($ctx.args.NoteId),
+            "SensorId": $util.dynamodb.toDynamoDBJson($ctx.args.SensorId),
             "UserId": $util.dynamodb.toDynamoDBJson($ctx.identity.sub)
           }
         }
@@ -290,9 +321,9 @@ Outputs:
   CognitoUserPoolClientId:
     Description: The Client ID for AWS AppSync Auth
     Value: !Ref UserPoolClient
-  DynamoDBNotesTableName:
+  DynamoDBSensorsTableName:
     Description: The name of the DynamoDB Table
-    Value: !Ref DynamoDBNotesTable
+    Value: !Ref DynamoDBSensorsTable
   GraphQLApiEndpoint:
     Description: The URL to the GraphQL Endpoint
     Value: !GetAtt AppSyncApi.GraphQLUrl
