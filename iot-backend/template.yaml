@@ -71,6 +71,16 @@ Resources:
       GenerateSecret: false
       UserPoolId: !Ref UserPool
 
+  # Creates a federeated Identity pool
+  IdentityPool:
+    Type: "AWS::Cognito::IdentityPool"
+    Properties:
+      IdentityPoolName: !Sub ${APIName}-identity-pool
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders:
+        - ClientId: !Ref UserPoolClient
+          ProviderName: !GetAtt UserPool.ProviderName
+
   # The data store to hold the Sensors and their values.
   DynamoDBSensorsTable:
     Type: "AWS::DynamoDB::Table"
