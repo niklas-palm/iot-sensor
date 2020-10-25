@@ -13,6 +13,7 @@ Parameters:
     MaxLength: 20
     AllowedPattern: "^[a-zA-Z][a-zA-Z0-9_]*$"
 
+Resources:
   # Cognito UserPool used for authenticting users and locking down AppSync API
   UserPool:
     Type: "AWS::Cognito::UserPool"
@@ -360,6 +361,25 @@ Parameters:
 
       ResponseMappingTemplate: "$util.toJson($ctx.result)"
 
+  # Lambda function triggered by data arriving on given topic
+  lambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda-function/
+      Handler: app.lambdaHandler
+      Runtime: nodejs12.x
+      Policies:
+        - AWSAppSyncInvokeFullAccess
+      Environment: # Injecting variables into the lambda runtime
+        Variables:
+          REGION: !Sub ${AWS::Region}
+          GRAPHQL_API: !GetAtt AppSyncApi.GraphQLUrl
+      Events:
+        IoTRule:
+          Type: IoTRule
+          Properties:
+            Sql: SELECT *, topic() as topic FROM 'topic/test'
+
 Outputs:
   CognitoUserPoolId:
     Description: The Pool ID of the Cognito User Pool
@@ -376,3 +396,6 @@ Outputs:
   GraphQLApiId:
     Description: The API ID of the GraphQL API
     Value: !GetAtt AppSyncApi.ApiId
+  LambdaFunctionARN:
+    Description: Lambda function ARN
+    Value: !GetAtt lambdaFunction.Arn
