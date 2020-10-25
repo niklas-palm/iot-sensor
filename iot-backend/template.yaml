@@ -12,6 +12,11 @@ Parameters:
     MinLength: 3
     MaxLength: 20
     AllowedPattern: "^[a-zA-Z][a-zA-Z0-9_]*$"
+  IotTopic:
+    Type: String
+    Description: "Topic that will route all messages to the Lambda"
+    MinLength: 3
+    MaxLength: 50
 
 Resources:
   # Cognito UserPool used for authenticting users and locking down AppSync API
@@ -378,7 +383,7 @@ Resources:
         IoTRule:
           Type: IoTRule
           Properties:
-            Sql: SELECT *, topic() as topic FROM 'topic/test'
+            Sql: !Sub SELECT *, topic() as topic FROM ${IotTopic}
 
 Outputs:
   CognitoUserPoolId:
