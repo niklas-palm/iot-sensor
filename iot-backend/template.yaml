@@ -399,3 +399,6 @@ Outputs:
   LambdaFunctionARN:
     Description: Lambda function ARN
     Value: !GetAtt lambdaFunction.Arn
+  IdentityPoolId:
+    Description: IdentityPool ID
+    Value: !Ref IdentityPool
