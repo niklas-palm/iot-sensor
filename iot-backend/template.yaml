@@ -13,39 +13,7 @@ Parameters:
     MaxLength: 20
     AllowedPattern: "^[a-zA-Z][a-zA-Z0-9_]*$"
 
-# Role and policy to allow SNS to send SMS for MFA
-Resources:
-  SNSRole:
-    Type: AWS::IAM::Role
-    Description: "An IAM Role to allow Cognito to send SNS messages"
-    Properties:
-      RoleName: !Sub ${APIName}-cognito-sns-role
-      ManagedPolicyArns:
-        - Ref: CognitoSNSPolicy
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Action:
-              - sts:AssumeRole
-            Principal:
-              Service:
-                - cognito-idp.amazonaws.com
-    DependsOn:
-      - CognitoSNSPolicy
-
-  CognitoSNSPolicy:
-    Type: AWS::IAM::ManagedPolicy
-    Properties:
-      Description: Managed policy to allow Amazon Cognito to access SNS
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Action: sns:publish
-            Resource: "*"
-
-  # Cognito UserPool used for authenticting users and lockgin down AppSync API
+  # Cognito UserPool used for authenticting users and locking down AppSync API
   UserPool:
     Type: "AWS::Cognito::UserPool"
     Description: "A Cognito user pool for authenticating users"
@@ -54,9 +22,8 @@ Resources:
       AutoVerifiedAttributes:
         - email
       MfaConfiguration: "OFF"
-      SmsConfiguration:
-        ExternalId: !Sub ${APIName}-external
-        SnsCallerArn: !GetAtt SNSRole.Arn
+      EmailConfiguration:
+        EmailSendingAccount: COGNITO_DEFAULT
       Schema:
         - Name: email
           AttributeDataType: String
@@ -81,6 +48,84 @@ Resources:
         - ClientId: !Ref UserPoolClient
           ProviderName: !GetAtt UserPool.ProviderName
 
+  # Create a role for unauthorized acces to AWS resources.
+  CognitoUnAuthorizedRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Federated: "cognito-identity.amazonaws.com"
+            Action:
+              - "sts:AssumeRoleWithWebIdentity"
+            Condition:
+              StringEquals:
+                "cognito-identity.amazonaws.com:aud": !Ref IdentityPool
+              "ForAnyValue:StringLike":
+                "cognito-identity.amazonaws.com:amr": unauthenticated
+      Policies:
+        - PolicyName: !Sub ${APIName}-CognitoUnauth-Policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "mobileanalytics:PutEvents"
+                  - "cognito-sync:*"
+                Resource: "*"
+
+  # Create a role for authorized acces to AWS resources.
+  CognitoAuthorizedRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Federated: "cognito-identity.amazonaws.com"
+            Action:
+              - "sts:AssumeRoleWithWebIdentity"
+            Condition:
+              StringEquals:
+                "cognito-identity.amazonaws.com:aud": !Ref IdentityPool
+              "ForAnyValue:StringLike":
+                "cognito-identity.amazonaws.com:amr": authenticated
+      Policies:
+        - PolicyName: !Sub ${APIName}-CognitoAuth-Policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action: appsync:GraphQL
+                Resource:
+                  - {
+                      Fn::Join:
+                        ["", [{ Ref: AppSyncApi }, "/types/Query/fields/*"]],
+                    }
+                  - {
+                      Fn::Join:
+                        [
+                          "",
+                          [{ Ref: AppSyncApi }, "/types/Subscription/fields/*"],
+                        ],
+                    }
+                  - {
+                      Fn::Join:
+                        ["", [{ Ref: AppSyncApi }, "/types/Mutation/fields/*"]],
+                    }
+
+  # Assigns the roles to the Identity Pool
+  IdentityPoolRoleMapping:
+    Type: "AWS::Cognito::IdentityPoolRoleAttachment"
+    Properties:
+      IdentityPoolId: !Ref IdentityPool
+      Roles:
+        authenticated: !GetAtt CognitoAuthorizedRole.Arn
+        unauthenticated: !GetAtt CognitoUnAuthorizedRole.Arn
+
   # The data store to hold the Sensors and their values.
   DynamoDBSensorsTable:
     Type: "AWS::DynamoDB::Table"
@@ -90,13 +135,9 @@ Resources:
       AttributeDefinitions:
         - AttributeName: "SensorId"
           AttributeType: "S"
-        - AttributeName: "UserId"
-          AttributeType: "S"
       KeySchema:
         - AttributeName: "SensorId"
           KeyType: "HASH"
-        - AttributeName: "UserId"
-          KeyType: "RANGE"
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
@@ -145,12 +186,8 @@ Resources:
     Type: "AWS::AppSync::GraphQLApi"
     Description: "The GraphQL API for the Sensors App"
     Properties:
-      AuthenticationType: "AMAZON_COGNITO_USER_POOLS"
+      AuthenticationType: "AWS_IAM"
       Name: !Sub ${APIName}
-      UserPoolConfig:
-        UserPoolId: !Ref UserPoolClient
-        AwsRegion: !Sub ${AWS::Region}
-        DefaultAction: "ALLOW"
 
   # The GraphQL schema.
   AppSyncSchema:
@@ -247,8 +284,7 @@ Resources:
           "version": "2017-02-28",
           "operation": "GetItem",
           "key": {
-            "SensorId": $util.dynamodb.toDynamoDBJson($ctx.args.SensorId),
-            "UserId": $util.dynamodb.toDynamoDBJson($ctx.identity.sub)
+            "SensorId": $util.dynamodb.toDynamoDBJson($ctx.args.SensorId)
           }
         }
 
@@ -268,8 +304,7 @@ Resources:
           "version": "2017-02-28",
           "operation": "PutItem",
           "key": {
-            "SensorId": $util.dynamodb.toDynamoDBJson($ctx.args.SensorId),
-            "UserId": $util.dynamodb.toDynamoDBJson($ctx.identity.sub)
+            "SensorId": $util.dynamodb.toDynamoDBJson($ctx.args.SensorId)
           },
           "attributeValues": {
             "sensorValue": $util.dynamodb.toDynamoDBJson($ctx.args.sensorValue),
@@ -293,8 +328,7 @@ Resources:
           "version": "2017-02-28",
           "operation": "UpdateItem",
           "key": {
-            "SensorId": $util.dynamodb.toDynamoDBJson($ctx.args.SensorId),
-            "UserId": $util.dynamodb.toDynamoDBJson($ctx.identity.sub)
+            "SensorId": $util.dynamodb.toDynamoDBJson($ctx.args.SensorId)
           },
           "update": {
             "expression": "SET sensorValue = :sensorValue",
@@ -320,8 +354,7 @@ Resources:
           "version": "2017-02-28",
           "operation": "DeleteItem",
           "key": {
-            "SensorId": $util.dynamodb.toDynamoDBJson($ctx.args.SensorId),
-            "UserId": $util.dynamodb.toDynamoDBJson($ctx.identity.sub)
+            "SensorId": $util.dynamodb.toDynamoDBJson($ctx.args.SensorId)
           }
         }
 
