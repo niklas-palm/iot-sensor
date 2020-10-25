@@ -50,23 +50,15 @@ Resources:
     Type: "AWS::Cognito::UserPool"
     Description: "A Cognito user pool for authenticating users"
     Properties:
-      UserPoolName: !Sub ${APIName}-user-pool
+      UserPoolName: !Sub ${APIName}-user-pool-
       AutoVerifiedAttributes:
-        - phone_number
+        - email
       MfaConfiguration: "OFF"
       SmsConfiguration:
         ExternalId: !Sub ${APIName}-external
         SnsCallerArn: !GetAtt SNSRole.Arn
       Schema:
-        - Name: name
-          AttributeDataType: String
-          Mutable: true
-          Required: true
         - Name: email
-          AttributeDataType: String
-          Mutable: false
-          Required: true
-        - Name: phone_number
           AttributeDataType: String
           Mutable: false
           Required: true
