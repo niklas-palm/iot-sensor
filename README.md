@@ -10,9 +10,9 @@ This repo contains the code for both the frontend and the backend of a real-time
 
 ### Pre-requisites
 
-- Valid AWS credentials
-- AWS SAM installed
-- npm installed
+- [Valid AWS credentials](https://aws.amazon.com/premiumsupport/knowledge-center/create-and-activate-aws-account/)
+- [AWS SAM installed](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
+- [npm installed](https://nodejs.org/en/download/)
 
 ### Installation guide
 
