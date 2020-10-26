@@ -2,6 +2,10 @@
 
 This repo contains the code for both the frontend and the backend of a real-time IoT sensor system.
 
+## Architecture
+
+![IoT sensor architecture](./images/iot-sensor-architecture.png)
+
 ## Installation
 
 ### Pre-requisites
@@ -23,7 +27,7 @@ The cloudformation template takes two parameters:
 - `APIName` - a prefix for all provisioned resources. For instance `IotSensor`
 - `IotTopic` - the IoT topic for which an IoT topic rule is created, routing all messages to a lambda. On the form `my/topic`, or `aws/device/+/sensor`. See [the docs](https://docs.aws.amazon.com/iot/latest/developerguide/topics.html) for more information on how to construct your MQTT topics.
 
-When deploy fails, enter `capabilities = "CAPABILITY_NAMED_IAM"` instead of `capabilities = "CAPABILITY_IAM"` in .toml, and run
+When deploy fails, enter `capabilities = "CAPABILITY_NAMED_IAM"` instead of `capabilities = "CAPABILITY_IAM"` in the `iot-backend/samconfig.toml`, and run
 
 ```bash
 sam deploy
