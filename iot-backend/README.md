@@ -1,10 +1,5 @@
 ## Backend
 
-The cloudformation template takes two parameters:
-
-- `APIName` - a prefix for all provisioned resources.
-- `IotTopic` - the IoT topic for which an IoT topic rule is created, routing all messages to a lambda.
-
 The cloudformation template creates:
 
 - Cognito userpool and identitypool, with assosciated authorised and unauthorised IAM roles.

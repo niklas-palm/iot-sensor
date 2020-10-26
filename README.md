@@ -18,6 +18,11 @@ Deploy CloudFormation template in the folder `iot-backend` using AWS SAM. Save a
 sam build && sam deploy --guided
 ```
 
+The cloudformation template takes two parameters:
+
+- `APIName` - a prefix for all provisioned resources. For instance `IotSensor`
+- `IotTopic` - the IoT topic for which an IoT topic rule is created, routing all messages to a lambda. On the form `my/topic`, or `aws/device/+/sensor`. See [the docs](https://docs.aws.amazon.com/iot/latest/developerguide/topics.html) for more information on how to construct your MQTT topics.
+
 When deploy fails, enter `capabilities = "CAPABILITY_NAMED_IAM"` instead of `capabilities = "CAPABILITY_IAM"` in .toml, and run
 
 ```bash
@@ -37,3 +42,16 @@ npm install && npm start
 to install all npm modules and start a local dev server.
 
 localhost:3000 is opened, and you're prompted to sign in / create a user.
+
+### Testing
+
+To test live updates of the dashboard,
+[will add script to generate data] use the AWS IoT core testing interface, and publish messages to the topic specified when deploying the CloudFormation template. The topic can found in the `iot-backend/samconfig.toml` file. Publish a message with the following payload:
+
+```json
+{
+  "SensorId": "sensor-1",
+  "sensorLocation": "Stockholm",
+  "sensorValue": "99"
+}
+```
