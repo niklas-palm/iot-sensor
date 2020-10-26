@@ -2,6 +2,8 @@
 
 This repo contains the code for both the frontend and the backend of a real-time IoT sensor system.
 
+![iot sensor dashboard](./images/dashboard-demo.png)
+
 ## Architecture
 
 ![IoT sensor architecture](./images/iot-sensor-architecture.png)
