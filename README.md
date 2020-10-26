@@ -59,3 +59,13 @@ To test live updates of the dashboard,
   "sensorValue": "99"
 }
 ```
+
+### Clean up
+
+To delete the provisioned AWS resources, run
+
+```bash
+aws cloudformation delete-stack --stack-name <stack-name>
+```
+
+where `<stack-name>` is the name of the cloudformation stack, specified when deploying the template. Can be found in `iot-backend/samconfig.toml`
