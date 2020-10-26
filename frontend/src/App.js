@@ -1,21 +1,25 @@
 import React from "react";
 import Amplify, { API, graphqlOperation } from "aws-amplify";
 import awsconfig from "./aws-exports";
-import logo from "./logo.svg";
 import "./App.scss";
 import "@aws-amplify/ui/dist/style.css"; // Styles for login component
-
 import { withAuthenticator } from "aws-amplify-react";
 
+// GraphQL
 import { allSensors } from "./graphql/queries";
 import { onAddSensor } from "./graphql/subscriptions";
+
+// Components
+import { SensorCard } from "./sensorCard";
 
 Amplify.configure(awsconfig);
 
 function App() {
-  const [sensors, setSensors] = React.useState({});
+  const [sensors, setSensors] = React.useState({}); // Observeable that holds all sensors
 
+  // Triggered once component mounts.
   React.useEffect(() => {
+    // Fetch all sensors
     const getData = async () => {
       const res = await API.graphql(graphqlOperation(allSensors));
       let init_sensors = {};
@@ -26,42 +30,46 @@ function App() {
       return;
     };
 
+    // Subscribe to sensor changes
     const subToChanges = () => {
-      const subscription = API.graphql(graphqlOperation(onAddSensor)).subscribe(
-        {
-          next: (payload) => {
-            // console.log(payload.value.data.onAddSensor);
-            let newSensor = payload.value.data.onAddSensor;
-            // Do something with the data
-            setSensors((prev) => ({
-              ...prev,
-              [newSensor.SensorId]: newSensor,
-            }));
-          },
-        }
-      );
+      let subscription = API.graphql(graphqlOperation(onAddSensor)).subscribe({
+        next: (payload) => {
+          // console.log(payload.value.data.onAddSensor);
+          let newSensor = payload.value.data.onAddSensor;
+          // Do something with the data
+          console.log(newSensor);
+          setSensors((prev) => ({
+            ...prev,
+            [newSensor.SensorId]: newSensor,
+          }));
+        },
+      });
+      return subscription;
     };
 
     getData();
-    subToChanges();
+    const subscription = subToChanges();
+
+    return () => {
+      // unsubscribe to changes once components unmounts.
+      subscription.unsubscribe();
+    };
   }, []);
 
+  const renderSensors = () => {
+    // Map over each sensor and return a SensorCard for each
+    if (Object.keys(sensors).length > 0) {
+      return Object.values(sensors).map((sensor) => {
+        return <SensorCard key={sensor.SensorId} sensor={sensor} />;
+      });
+    }
+    return <h2 style={{ color: "#d45b07", fontWeight: "400" }}>Loading...</h2>;
+  };
+
+  // If sensors comes back empty.
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div className="AppWrapper">
+      <div className="App">{renderSensors()}</div>
     </div>
   );
 }
