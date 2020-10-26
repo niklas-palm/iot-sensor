@@ -18,7 +18,7 @@ This repo contains the code for both the frontend and the backend of a real-time
 
 ### Installation guide
 
-Deploy CloudFormation template in the folder `iot-backend` using AWS SAM. Save arguments to .toml file
+Deploy CloudFormation template in the folder `backend` using AWS SAM. Save arguments to .toml file
 
 ```bash
 sam build && sam deploy --guided
@@ -29,7 +29,7 @@ The cloudformation template takes two parameters:
 - `APIName` - a prefix for all provisioned resources. For instance `IotSensor`
 - `IotTopic` - the IoT topic for which an IoT topic rule is created, routing all messages to a lambda. On the form `my/topic`, or `aws/device/+/sensor`. See [the docs](https://docs.aws.amazon.com/iot/latest/developerguide/topics.html) for more information on how to construct your MQTT topics.
 
-When deploy fails, enter `capabilities = "CAPABILITY_NAMED_IAM"` instead of `capabilities = "CAPABILITY_IAM"` in the `iot-backend/samconfig.toml`, and run
+When deploy fails, enter `capabilities = "CAPABILITY_NAMED_IAM"` instead of `capabilities = "CAPABILITY_IAM"` in the `backend/samconfig.toml`, and run
 
 ```bash
 sam deploy
@@ -52,7 +52,7 @@ localhost:3000 is opened, and you're prompted to sign in / create a user.
 ### Testing
 
 To test live updates of the dashboard,
-[will add script to generate data] use the AWS IoT core testing interface, and publish messages to the topic specified when deploying the CloudFormation template. The topic can found in the `iot-backend/samconfig.toml` file. Publish a message with the following payload:
+[will add script to generate data] use the AWS IoT core testing interface, and publish messages to the topic specified when deploying the CloudFormation template. The topic can found in the `backend/samconfig.toml` file. Publish a message with the following payload:
 
 ```json
 {
@@ -70,4 +70,4 @@ To delete the provisioned AWS resources, run
 aws cloudformation delete-stack --stack-name <stack-name>
 ```
 
-where `<stack-name>` is the name of the cloudformation stack, specified when deploying the template. Can be found in `iot-backend/samconfig.toml`
+where `<stack-name>` is the name of the cloudformation stack, specified when deploying the template. Can be found in `backend/samconfig.toml`
