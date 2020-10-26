@@ -37,7 +37,7 @@ sam deploy
 
 This is because some of the policies and roles created are given explicit names, to make them more easily searchable. The AWS SAM cli command `sam deploy --guided` doesn't give you the option to use "CAPABILITY_NAMED_IAM" out of the box, which is why this step is necassary.
 
-Once that has been deployed successfully, create `frontend/src/aws-exports.js`, based on the template in `frontend/src/aws-exports-template.js` and populate with the values obtained deploying the CloudFormation template above.
+Once that has been deployed successfully, create `frontend/src/aws-exports.js`, based on the template in `frontend/src/aws-exports-template.js` and populate with the values obtained deploying the CloudFormation template above. These are reported back to you in the shell where you deployed the template as an output, or discoverable on the cloudformation page in the AWS console, under the output tab for you specific stack.
 
 In the `frontend` folder, run
 
